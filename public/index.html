@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatFluence</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+</head>
+<body>
+  <div id="login-gate" class="login-gate" role="dialog" aria-modal="true" aria-labelledby="login-title">
+    <div class="login-card">
+      <div class="login-brand">
+        <img class="login-logo" src="/asset/vuno_inc_logo.jpeg" width="40" height="40" alt="" />
+        <span class="login-brand-name">ChatFluence</span>
+      </div>
+      <h1 id="login-title" class="login-title">로그인</h1>
+      <p class="login-lead">Confluence 토큰과 OpenAI API 키를 이용하여 ChatFluence에 로그인합니다.</p>
+      <form class="login-form" id="login-form" onsubmit="event.preventDefault(); app.submitLogin();">
+        <div class="login-field">
+          <label class="login-label" for="login-user-id">사용자 ID</label>
+          <input type="text" id="login-user-id" class="login-input" name="username" autocomplete="username" placeholder="예: gildong.hong" required />
+          <p class="login-hint"><code>@vuno.co</code>는 자동으로 붙습니다. 전체 이메일을 입력해도 됩니다.</p>
+        </div>
+        <div class="login-field">
+          <label class="login-label" for="login-cf-token">Confluence 토큰</label>
+          <input type="password" id="login-cf-token" class="login-input" autocomplete="off" required />
+        </div>
+        <div class="login-field">
+          <label class="login-label" for="login-oai-key">OpenAI API 키</label>
+          <input type="password" id="login-oai-key" class="login-input" autocomplete="off" required />
+        </div>
+        <p id="login-error" class="login-error" hidden role="alert"></p>
+        <button type="submit" class="btn-primary btn-full login-submit" id="login-submit">로그인</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="app">
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <img class="logo-img" src="/asset/vuno_inc_logo.jpeg" width="28" height="28" alt="Vuno" />
+          <span>ChatFluence</span>
+        </div>
+        <button class="icon-btn" onclick="app.newSession()" title="New chat">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="sidebar-section sidebar-section-grow">
+        <div class="section-title">History</div>
+        <div id="history-list" class="history-list"></div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button type="button" class="sidebar-footer-btn" onclick="app.logout()" title="세션을 지우고 로그인 화면으로">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          로그아웃
+        </button>
+        <button class="sidebar-footer-btn" onclick="app.openSettings()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          Settings
+        </button>
+        <div class="connection-status" id="connection-status">
+          <span class="status-dot"></span>
+          <span class="status-text">Checking...</span>
+        </div>
+      </div>
+    </aside>
+
+    <button class="sidebar-toggle" onclick="app.toggleSidebar()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+
+    <main class="main-content">
+      <div class="chat-container" id="chat-container">
+        <div id="welcome-screen" class="welcome-screen">
+          <div class="welcome-icon">
+            <img class="welcome-logo" src="/asset/vuno_inc_logo.jpeg" width="72" height="72" alt="" />
+          </div>
+          <h1 id="welcome-title" class="welcome-screen-title" lang="ko">ChatFluence</h1>
+          <p class="welcome-subtitle">Confluence 문서를 자연어로 검색·조회하고, 필요하면 페이지·댓글 작업까지 이어갈 수 있는 AI 챗입니다. 파일을 첨부해 함께 분석할 수도 있습니다.</p>
+          <div class="welcome-panels" role="region" aria-label="이용 안내">
+            <section class="welcome-panel welcome-panel--about" aria-labelledby="welcome-panel-about-title">
+              <h2 id="welcome-panel-about-title" class="welcome-panel-title">이용 안내</h2>
+              <ul class="welcome-panel-list">
+                <li>상단에서 <strong>스페이스</strong>, <strong>모델</strong>, <strong>작업 유형</strong>(읽기만 / 페이지 생성·댓글·수정·삭제 등)을 선택한 뒤 질문을 입력하세요.</li>
+                <li>Confluence에서 제목·내용 검색, 특정 페이지 읽기, 스페이스 목록 등은 도구로 처리됩니다.</li>
+                <li>입력창 왼쪽 클립으로 <strong>PDF·Word·슬라이드·CSV·이미지</strong> 등을 첨부하면, 본문을 읽고 질문·요약·표 정리 등에 활용합니다.</li>
+                <li>첨부 내용을 바탕으로 Confluence에 요약 페이지를 만들거나 댓글을 달도록 요청할 수 있습니다. 그때는 해당 <strong>쓰기 작업</strong>을 선택해야 합니다.</li>
+              </ul>
+            </section>
+            <section class="welcome-panel welcome-panel--caution" aria-labelledby="welcome-panel-caution-title">
+              <h2 id="welcome-panel-caution-title" class="welcome-panel-title">유의사항</h2>
+              <ul class="welcome-panel-list">
+                <li>페이지 생성·수정·삭제·댓글 작성은 실행 전 <strong>미리보기와 확인(실행/취소)</strong> 단계가 있을 수 있습니다. 반드시 내용을 검토한 뒤 진행하세요.</li>
+                <li>AI 답변·요약·추출 텍스트는 <strong>참고용</strong>입니다. 임상·법무·보안 등 중요한 판단은 원문과 정책을 기준으로 하세요.</li>
+                <li>불필요한 <strong>개인정보·기밀</strong>은 채팅·첨부에 넣지 마세요. 사내 정보보안 규정을 따라 이용하세요.</li>
+                <li>첨부는 <strong>개수·용량 제한</strong>이 있으며, 스캔 PDF·복잡한 서식은 텍스트가 일부만 추출되거나 빠질 수 있습니다.</li>
+              </ul>
+            </section>
+          </div>
+          <p class="welcome-contact">문의: 이나혁 (연구개발본부 Fundus팀)</p>
+          <div class="model-badge" id="model-badge"></div>
+        </div>
+        <div id="messages" class="messages"></div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-model-bar">
+          <select id="chat-space-select" class="chat-space-select" title="대상 스페이스">
+            <option value="">전체 스페이스</option>
+          </select>
+          <select id="chat-model-select" class="chat-model-select" title="이번 메시지에 쓸 모델">
+            <option value="">Loading...</option>
+          </select>
+          <div class="tool-write-bar" role="radiogroup" aria-label="이번 메시지 작업 (하나만 선택)">
+            <label class="tool-cb write-tool write-task-option"><input type="radio" name="chat-write-task" value="none" checked><span>읽기만</span></label>
+            <label class="tool-cb write-tool write-task-option"><input type="radio" name="chat-write-task" value="confluence_create_page"><span>페이지 생성</span></label>
+            <label class="tool-cb write-tool write-task-option"><input type="radio" name="chat-write-task" value="confluence_add_comment"><span>댓글 작성</span></label>
+            <label class="tool-cb write-tool write-task-option"><input type="radio" name="chat-write-task" value="confluence_update_page"><span>페이지 수정</span></label>
+            <label class="tool-cb write-tool write-task-option"><input type="radio" name="chat-write-task" value="confluence_delete_page"><span>페이지 삭제</span></label>
+          </div>
+        </div>
+        <div class="tool-context-stack" id="tool-context-stack">
+          <div class="parent-page-row" id="parent-page-row">
+            <div class="parent-page-row-head">
+              <span class="parent-page-label">새 페이지 부모 (선택)</span>
+              <span class="parent-page-flash" id="parent-page-flash" aria-live="polite"></span>
+            </div>
+            <div class="parent-page-field-wrap" id="parent-page-field-wrap">
+              <input type="search" id="parent-page-search" class="parent-page-search" placeholder="제목으로 검색하거나 페이지 URL을 붙여넣은 뒤 Enter" autocomplete="off" />
+              <div id="parent-page-results" class="parent-page-results" hidden></div>
+            </div>
+            <div id="parent-page-selected" class="parent-page-selected" hidden>
+              <div class="parent-page-chip">
+                <span class="parent-page-chip-title" id="parent-page-chip-title"></span>
+                <span class="parent-page-chip-meta" id="parent-page-chip-meta"></span>
+              </div>
+              <button type="button" class="btn-secondary btn-compact" id="parent-page-reset" title="부모 페이지 선택을 초기화합니다">초기화</button>
+            </div>
+            <p class="parent-page-help">선택하면 다음 메시지부터 페이지 생성 시 이 부모 아래에 만듭니다. 스페이스를 바꾸면 선택이 해제됩니다. 비우면 AI가 URL·검색으로 부모를 정하거나 루트에 둘 수 있습니다.</p>
+          </div>
+          <div class="comment-page-row" id="comment-page-row">
+            <div class="comment-page-row-head">
+              <span class="comment-page-label">댓글 달 페이지 (선택)</span>
+              <span class="comment-page-flash" id="comment-page-flash" aria-live="polite"></span>
+            </div>
+            <div class="comment-page-field-wrap" id="comment-page-field-wrap">
+              <input type="search" id="comment-page-search" class="comment-page-search" placeholder="제목 검색 또는 페이지 URL 붙여넣기 후 Enter" autocomplete="off" />
+              <div id="comment-page-results" class="comment-page-results" hidden></div>
+            </div>
+            <div id="comment-page-selected" class="comment-page-selected" hidden>
+              <div class="comment-page-chip">
+                <span class="comment-page-chip-title" id="comment-page-chip-title"></span>
+                <span class="comment-page-chip-meta" id="comment-page-chip-meta"></span>
+              </div>
+              <button type="button" class="btn-secondary btn-compact" id="comment-page-reset" title="댓글 대상 페이지 선택을 초기화합니다">초기화</button>
+            </div>
+            <p class="comment-page-help">선택하면 다음 메시지부터 댓글 작성 시 이 페이지에 답니다. 스페이스를 바꾸면 선택이 해제됩니다. 비우면 AI가 URL·검색으로 대상을 정합니다.</p>
+          </div>
+          <div class="update-page-row" id="update-page-row">
+            <div class="update-page-row-head">
+              <span class="update-page-label">수정할 페이지 (선택)</span>
+              <span class="update-page-flash" id="update-page-flash" aria-live="polite"></span>
+            </div>
+            <div class="update-page-field-wrap" id="update-page-field-wrap">
+              <input type="search" id="update-page-search" class="update-page-search" placeholder="제목 검색 또는 페이지 URL 붙여넣기 후 Enter" autocomplete="off" />
+              <div id="update-page-results" class="update-page-results" hidden></div>
+            </div>
+            <div id="update-page-selected" class="update-page-selected" hidden>
+              <div class="update-page-chip">
+                <span class="update-page-chip-title" id="update-page-chip-title"></span>
+                <span class="update-page-chip-meta" id="update-page-chip-meta"></span>
+              </div>
+              <button type="button" class="btn-secondary btn-compact" id="update-page-reset" title="대상 페이지 선택을 초기화합니다">초기화</button>
+            </div>
+            <p class="update-page-help">선택하면 페이지 수정 시 이 페이지 ID를 우선 사용합니다. 스페이스를 바꾸면 해제됩니다. 비우면 AI가 URL·검색으로 대상을 정합니다.</p>
+          </div>
+          <div class="delete-page-row" id="delete-page-row">
+            <div class="delete-page-row-head">
+              <span class="delete-page-label">삭제할 페이지 (선택)</span>
+              <span class="delete-page-flash" id="delete-page-flash" aria-live="polite"></span>
+            </div>
+            <div class="delete-page-field-wrap" id="delete-page-field-wrap">
+              <input type="search" id="delete-page-search" class="delete-page-search" placeholder="제목 검색 또는 페이지 URL 붙여넣기 후 Enter" autocomplete="off" />
+              <div id="delete-page-results" class="delete-page-results" hidden></div>
+            </div>
+            <div id="delete-page-selected" class="delete-page-selected" hidden>
+              <div class="delete-page-chip">
+                <span class="delete-page-chip-title" id="delete-page-chip-title"></span>
+                <span class="delete-page-chip-meta" id="delete-page-chip-meta"></span>
+              </div>
+              <button type="button" class="btn-secondary btn-compact" id="delete-page-reset" title="대상 페이지 선택을 초기화합니다">초기화</button>
+            </div>
+            <p class="delete-page-help">선택하면 페이지 삭제 시 이 페이지 ID를 우선 사용합니다. 스페이스를 바꾸면 해제됩니다. 비우면 AI가 URL·검색으로 대상을 정합니다.</p>
+          </div>
+        </div>
+        <div id="pending-block-flash" class="pending-block-flash" hidden role="status" aria-live="polite"></div>
+        <input type="file" id="chat-file-input" hidden multiple
+          accept=".pdf,.docx,.pptx,.csv,.tsv,.txt,.md,.json,.xml,.html,.htm,.xlsx,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.py,.js,.ts,.yml,.yaml,.log" />
+        <div id="attachment-strip" class="attachment-strip" hidden aria-label="첨부 파일" aria-live="polite"></div>
+        <div class="input-row">
+          <button type="button" class="attach-btn" id="chat-attach-btn" title="파일 첨부 (PDF, Word, PPT, CSV, 이미지 등)" aria-label="파일 첨부">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+            </svg>
+          </button>
+          <textarea id="chat-input" class="chat-input" placeholder="Confluence에 대해 물어보세요… (PDF·문서·이미지 첨부 가능)" rows="1"></textarea>
+          <button class="send-btn" onclick="app.handleSendBtn()" id="send-btn">
+            <svg class="icon-send" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+            <svg class="icon-stop" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display:none">
+              <rect x="6" y="6" width="12" height="12" rx="2"/>
+            </svg>
+          </button>
+        </div>
+        <div class="input-footer">
+          <p class="footer-disclaimer" lang="ko">ChatFluence는 AI Agent로 실수할 수 있습니다. 사용에 유의하시어 반드시 결과물을 확인하세요.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal" onclick="if(event.target===this)app.closeSettings()">
+    <div class="modal-content modal-settings">
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <button class="modal-close" onclick="app.closeSettings()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <section class="settings-subsection settings-subsection--defaults" aria-labelledby="chat-defaults-heading">
+          <div class="settings-group">
+            <label class="settings-label" for="settings-default-model-select">채팅 기본 모델</label>
+            <p class="settings-help">저장하면 서버 기본값이 바뀌고, 채팅 화면 모델 드롭다운도 이 값으로 맞춰집니다. OpenAI 키는 로그인할 때만 설정됩니다.</p>
+            <div class="model-select-row">
+              <select id="settings-default-model-select" class="form-select"></select>
+              <button type="button" class="icon-btn refresh-btn" onclick="app.refreshSettingsModels(true)" title="모델 목록 새로고침" id="settings-refresh-models-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+              </button>
+            </div>
+            <div id="settings-model-status" class="settings-model-status"></div>
+          </div>
+          <div class="settings-group">
+            <label class="settings-label" for="default-space-select">채팅 기본 스페이스</label>
+            <p class="settings-help">채팅 상단 드롭다운에 처음부터 선택돼 있을 스페이스입니다. 아래에서 드롭다운에 넣는 스페이스(글로벌 체크 + 개인 일괄 포함) 중에서만 고를 수 있습니다.</p>
+            <select id="default-space-select" class="form-select"></select>
+          </div>
+        </section>
+
+        <section class="settings-subsection" aria-labelledby="global-spaces-heading">
+          <h3 id="global-spaces-heading" class="settings-subsection-title">스페이스 드롭다운에 표시</h3>
+          <p class="settings-help">글로벌 스페이스는 목록에서 골라 넣고, 개인 스페이스는 한 번에 켜고 끕니다.</p>
+          <label class="space-picker-personal-opt">
+            <input type="checkbox" id="include-personal-spaces" />
+            <span class="space-picker-personal-opt-text">개인 스페이스 전부 포함</span>
+            <span id="include-personal-spaces-count" class="space-picker-personal-opt-count" aria-live="polite"></span>
+          </label>
+          <div class="space-picker-toolbar">
+            <input type="search" id="space-picker-search" class="form-input space-picker-search" placeholder="이름 또는 키로 검색..." autocomplete="off" />
+          </div>
+          <div class="space-picker-actions">
+            <button type="button" class="btn-secondary btn-compact" onclick="app.spacePickerSelectAll()">모두 선택</button>
+            <button type="button" class="btn-secondary btn-compact" onclick="app.spacePickerSelectNone()">모두 해제</button>
+          </div>
+          <div id="space-picker-status" class="space-picker-status"></div>
+          <div id="space-picker-list" class="space-picker-list"></div>
+        </section>
+
+        <button class="btn-primary btn-full" onclick="app.saveConfig()">저장</button>
+        <div id="settings-status" class="settings-status"></div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
